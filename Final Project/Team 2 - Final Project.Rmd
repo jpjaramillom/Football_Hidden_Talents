@@ -1,0 +1,391 @@
+---
+title: "Team project: Final Submission"
+author: "Juan Pablo Jaramillo & Varun Vijayakumar - TEAM 2"
+subtitle: "MoneyBall strategy in the English Premier League"
+output:
+  html_notebook:
+    highlight: pygments
+    number_sections: yes
+    theme: readable
+    toc: yes
+    toc_float:
+      collapsed: yes
+---
+ATTENTION!!
+PLEASE RUN ALL THE CODE ON THE NOTEBOOK: "TEAM 2 - CODE". THIS IS TO ENSURE TO ENSURE ALL THE VARIABLES USED IN THIS MODEL
+ARE IN THE GLOBAL ENVIRONMENT BEFORE LOOKING THROUGH THE FINAL PROJECT SUBMISSION BELOW.
+
+SHORTCUT TO RUN ALL THE CODE IN A NOTEBOOK: COMMAND + OPTION + R
+
+# Set-up {-}
+```{r load packages, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(broom)
+# load other packages AS NEEDED and ONLY IF YOU *REALLY* NEED THEM
+# If you load other packages, **explain why you need them**. If you cannot explain why, not good! 
+```
+
+# Introduction
+In the English Premier League (EPL), it's pretty much said that the traditional big teams win year on year, mainly because of their economical power and access to funding. After having read the book 'Money Ball', we believed there could be a way to replicate this strategy within the EPL in order to allow smaller teams with far less access to funding to be able to compete with the traditionally bigger teams such as; Chelsea, Manchester City etc.
+In 2016, Leicester City took everyone by surprise and won the EPL title however people all over the world saw this as a lucky win.
+We aim to help Leicester City, with the help of statistics rather than intuition, get back on the road to victory in the 2020 football season.
+
+In order to put it in perspective, in the 2020 season, Leicester City have 30million allocated to buy players, whereas a team such as Chelsea have 120million. Normally in a situation like this, Leicester would have no chance in being able to buy players to the extent Chelsea do. 
+Over the last 20 years, the following teams have won the EPL: Manchester United (7), Liverpool (1), Manchester City (4), Chelsea (5), Leicester (1), Arsenal (2). Because of this, it is almost certain that football supporters that do not live in England will support one of the traditionally big teams (Manchester United, Chelsea, Manchester City, Arsenal etc.) as they are the ones heavily advertised worldwide. The result of this is these teams get bigger and bigger from a financial standpoint, whereas a team like Leicester is far from growing at the same rate.
+
+## Objective
+
+**Goal**: Using a predictive model, this analysis aims to build a championship winning team for Leicester city given their limited budget.
+
+The strategy we propose aims to find undervalued players that possess the specific skill set to play in each of their positions, as done by Billy Beane within Baseball.
+We hope once this strategy is implemented, it gives Leicester City a better fighting chance to win the league as oppose to being happy if they finish in the Top 10 at the end of the season as per the norm. The focus was on building a model for Leicester that enables them to identify talent that was not picked up by bigger clubs. These players may not have been considered due to inconsequential reasons that do not hinder performance.
+
+Five main playing positions have been identified and we will be looking to pick players that have the specific skill set for their respective positions and disregard everything else.
+
+As a result, the model gives us the lowest priced top players for each position whom have two to three of the main skills for that position. Adding on to that, using linear models we were able to build a predictive pricing model for each position which enabled us to evaluate whether a particular player was undervalued/overvalues. These results can now be analyzed by the manager at Leciester, Brendan Rodgers, which will allow him to make the most effective purchases in this year's transfer window.
+
+&nbsp;
+
+# Data
+Dataset used: FIFA 19 complete player database
+Date: December 21, 2018
+
+[Link to data](https://www.kaggle.com/karangadiya/fifa19)
+
+&nbsp;
+
+## Reliability of Information
+The data we have used in order to build our model is from the FIFA 19 game. Electronic Arts (EA) sports spends a lot of time and money to make sure player statistics and information are as up-to-date as can be. They "employ a team of 25 EA Producers and 400 outside data contributors, who are led by Head of Data Collection & Licensing, Michael Mueller-Moehring. This team is responsible for ensuring all player data is up to date, whilst a community of over 6,000 FIFA Data Reviewers and Talent Scouts from all over the world are constantly providing suggestions and alterations to the database."
+
+[See more](https://www.goal.com/en-ae/news/fifa-player-ratings-explained-how-are-the-card-number-stats/1hszd2fgr7wgf1n2b2yjdpgynu#:~:text=Each%20player%20in%20FIFA%20Ultimate,calculate%20the%20player's%20overall%20rating)
+
+
+## Load Database
+```{r load data, message=FALSE, warning=FALSE}
+fifa_data  <- read.csv('data/fifa.raw.data.csv') #Import function used
+```
+
+&nbsp;
+
+# Analysis 
+## Exploratory Analysis
+To kick things off and get a feel for the variables and distributions present in the dataset, we did some exploratory analysis. 
+The results are as follows: 
+
+### Figure 1: Histogram of Overall Scores of players.
+**Comment**: As shown below, the distribution of Overall player scores are normally distributed. This is a positive sign as this data can be used
+in further analysis without transformation.
+
+```{r Exploratory: Overall scores distribution, message=FALSE, warning=FALSE}
+fifa_data %>% 
+  ggplot(aes(x = Overall))+   
+  geom_histogram(bins = 100)
+```
+&nbsp;
+
+### Figure 2: Scatter plot between Price and Overall score
+**Comment:** The below scatter plot shows a non-linear relationship between Price and Overall score. 
+Price, being the dependent variable on the Y-axis, needs to be transformed.
+```{r Exploratory: Price vs Overall Score, message=FALSE, warning=FALSE}
+fifa_data %>% 
+  filter(Price > 0) %>% 
+  ggplot(data = .,aes(x = Overall, y= Price))+
+  geom_point()+
+  geom_vline(xintercept = 65, color = "Red")
+```
+&nbsp;
+
+### Figure 2.1: Effect of Log transformation on Price
+**Comment:** The best method of transformation when the variable has very low values as well as extremely high ones is the Log transformation.
+Below we observe that once "Price" has been transformed to "log_price", the relationship with Overall score is one that is linear.
+It is important to note that we have performed the transformation primarily, in this case, to move forward with a linear regression between these two variables.
+```{r Exploratory: Log transformation of Price, message=FALSE, warning=FALSE}
+#TRANSFORMATION OF PRICE
+fifa_data <- fifa_data %>% 
+  mutate(log_price = log(Price))
+```
+
+```{r Exploratory: log_price vs Overall Score, message=FALSE, warning=FALSE}
+#Scatter plot after transformation
+fifa_data %>% 
+  filter(Price > 0) %>% 
+  ggplot(data = .,aes(x = Overall, y= log_price))+
+  geom_point()+
+  geom_smooth(method = "lm")
+```
+&nbsp;
+
+### Figure 3: Linear Regression Summary
+**Comment:**The R-squared of this model is 88.06% which means that 88% of the variation in "log_price" can be explained by the players "Overall" score. 
+Price = 0 excluded because log(0) = -infinity which would distort the results. 
+It can also be observed that there is a positive relationship between the two variables being analysed. 
+```{r Exploratory: LM: log_price vs Overall Score, message=FALSE, warning=FALSE}
+fifa_data %>% 
+  filter(Price > 0) %>% 
+  lm(formula = log_price ~ Overall, data = .) %>% 
+  summary()
+```
+&nbsp;
+
+### Figure 4: Analysis of relationship between salary and price of players
+**Comment:** Moving on we thought it would be a good idea to analyze the "Price" of football players vs their weekly "Salaries".
+Salary and Price and positively correlated however it can be seen that when price exceeds £30million the dispersion between price and salary start to increase significantly.
+```{r Exploratory: Salary vs Price, message=FALSE, warning=FALSE}
+fifa_data %>% 
+  ggplot(data = ., aes(x = Price, y = Salary))+
+  geom_point(alpha = 0.25)+
+  geom_vline(xintercept = 30000000, color = "red")+
+  geom_smooth(method = "lm")
+```
+&nbsp;
+
+## In depth Analysis
+Having a basic idea of the price of players and their salaries, in relation to their overall scores, we wanted to proceed building our model in the following steps:
+- Player grouping
+- Price analysis
+- Linear Models (Identification of significant skills per position)
+  -> Setting benchmarks
+  -> Predicting Player Prices with Linear regression formula
+- Player Identification process
+
+### Player Grouping
+In order to further move along with the analysis, we grouped all 32 different playing positions within the data set into 5 main categories (Strikers, Wingers, Midfield, Defense, Goal Keeper). This was done in order to be able to identify "Statistically significant" player attributes that influence the Price of a player that plays in one of the 5 categories.
+
+```{r In depth Analysis: Player Grouping, message=FALSE, warning=FALSE}
+fifa_data <- fifa_data %>% 
+  mutate(Grouped_Position = ifelse(fifa_data$Position == 'RF', 'STRIKER',
+                        ifelse(fifa_data$Position == 'CAM', 'MIDFIELD',
+                        ifelse(fifa_data$Position == 'CB', 'DEFENCE',
+                        ifelse(fifa_data$Position == 'CDM', 'MIDFIELD',
+                        ifelse(fifa_data$Position == 'CF', 'STRIKER',
+                        ifelse(fifa_data$Position == 'CM', 'MIDFIELD',
+                        ifelse(fifa_data$Position == 'GK', 'GOAL-KEEPER',
+                        ifelse(fifa_data$Position == 'LAM', 'MIDFIELD',
+                        ifelse(fifa_data$Position == 'LB', 'DEFENCE',
+                        ifelse(fifa_data$Position == 'LCB', 'DEFENCE',
+                        ifelse(fifa_data$Position == 'LDM', 'MIDFIELD',
+                        ifelse(fifa_data$Position == 'LCM', 'MIDFIELD',
+                        ifelse(fifa_data$Position == 'LF', 'WING',
+                        ifelse(fifa_data$Position == 'LM', 'MIDFIELD',
+                        ifelse(fifa_data$Position == 'LW', 'WING',
+                        ifelse(fifa_data$Position == 'LWB', 'DEFENCE', 
+                        ifelse(fifa_data$Position == 'RAM', 'MIDFIELD', 
+                        ifelse(fifa_data$Position == 'RB', 'DEFENCE', 
+                        ifelse(fifa_data$Position == 'RCB', 'DEFENCE',
+                        ifelse(fifa_data$Position == 'RCM', 'MIDFIELD',
+                        ifelse(fifa_data$Position == 'RDM', 'MIDFIELD',
+                        ifelse(fifa_data$Position == 'RF', 'STRIKER',
+                        ifelse(fifa_data$Position == 'RM', 'MIDFIELD',
+                        ifelse(fifa_data$Position == 'RS', 'STRIKER',
+                        ifelse(fifa_data$Position == 'RW', 'WING',
+                        ifelse(fifa_data$Position == 'RWB', 'DEFENCE',
+                        ifelse(fifa_data$Position == 'ST', 'STRIKER',
+                        ifelse(fifa_data$Position == 'LS', 'STRIKER',
+                        'other')))))))))))))))))))))))))))))
+```
+**Comment:** The 'other' category is defined by players that have not been assigned a playing position.
+
+
+### Price analysis
+The price criteria was defined considering the budget of the Leicester City football club (USD30,000,0000) and the distribution of the prices in our data set. 
+First we looked at the quartiles of the data to see the the distribution of prices under the curve in the original data set. It was interesting to see that there was a difference between the fourth quartile and the third quartile of USD 98.5m while the median was USD 675,000. 
+The decision was made to consider prices over USD 20,000,000 (Q3) as Outliers. 
+
+Comment: The difference between the fourth quartile and the second is very large ($98.5m). 
+```{r Price analysis 1: Quantiles of Data Set, message=FALSE, warning=FALSE}
+quantile(fifa_data$Price)
+```
+
+
+From there, Q75 was created in order to plot the quartiles again and see how the upper 25% of the data is distributed. This yeilded a result showing a revised Q3 value of USD 9,000,000.
+```{r Price analysis 2: Creating Q75 for Further Analysis, message=FALSE, warning=FALSE}
+# Selecting the Q75 = 2000000
+Q75 <- fifa_data %>%
+  filter(.data = ., Price !=0 & Price > 2000000)
+```
+
+```{r Price analysis 3: Q75 Quantiles, message=FALSE, warning=FALSE}
+# Understanding the distribution of the upper 25% or Q75
+quantile(Q75$Price)
+```
+
+**Assumptions**
+
+1) Using a hypothesized value of 25%, we made the assumption that players priced, in revised dataset, more than $9,000,000 were considered "Super Stars". In other words, player's with prices above USD 9,000,000 are the top 25% of the revised data.
+
+2) It was also assumed that players with an "International Reputation" of greater than 4 (on a scale of 1:5) were "Super Stars"
+
+To begin our analysis, we created two data sets. The first one, named fifa_data_avg_player (Players valued < USD9.000.000 & International reputation < 4) and the second fifa_superstars (Players valued > USD9.000.000).
+
+```{r Price analysis 4: Data Frames to Work With, message=FALSE, warning=FALSE}
+fifa_data_avg_player <- fifa_data %>% 
+  filter(.data = ., Price < 9000000 & International.Reputation < 4) #Data frame to work with 
+
+fifa_superstars <- fifa_data %>% 
+  filter(., Price > 9000000)  #number of superstar that are valued over $9,000,000
+```
+
+
+
+### Linear Models (Identification of significant skills per position)
+Linear Regressions techniques were used to identify key skills that a player must posses in each one of the 5 playing positions all this being done in relation to the price of the player. The significance level for every skill was determined after running regressions between the price of the players in each main position in relation with the skills of the players. The analysis above was done in all five positions created, however for the sake of avoiding repetition, we have illustrated the process using one playing position (Midfield).
+Note: All other regressions have been completed in the "Team 2 - Code" notebook.
+
+```{r Linear Models: Key skill (Midfield), message=FALSE, warning=FALSE}
+#filtering for MIDFIELD players
+fifa_data_avg_player %>% 
+  filter(Price > 0 & Grouped_Position == "MIDFIELD") %>%
+  lm(formula = log_price ~ Crossing+Finishing+HeadingAccuracy+ShortPassing+Volleys+Dribbling+Curve+FKAccuracy+LongPassing+BallControl+Acceleration+SprintSpeed+Agility+Reactions+Balance+ShotPower+Jumping+Stamina+Strength+LongShots+Aggression+Interceptions+Positioning+Vision+Penalties+Composure+Marking+StandingTackle+SlidingTackle+GKDiving+GKHandling+GKKicking+GKReflexes, data = .) %>% 
+  summary()
+```
+**Comment:**
+
+*SIGNIFICANT VARIABLES (SKILLS):*
+
+**Highly Significant (0.1%- Significance Level)**:Intercept, Finishing, HeadingAccuracy, ShortPassing, Volleys, Dribbling, FKaccuracy, Long Passing, BallControl, Acceleration, SprintSpeed, Reactions, Balance, ShotPower, Jumping, Stamina, Positioning, Vision, Composure
+
+**Middle (1% - Significance Level):** Strength
+
+**Low(5% - Significance Level):** Penalties
+
+
+After understanding that all the categories analyzed didn't have the same significance level, we decided to go for the skills that were more significant. It is evident that a Mid-fielder needs to especially good at the 19 highly significant skills in order for them to fetch a high purchase Price. The same regression analysis was done for every grouped position. (Reference: "Team 2 - Code") 
+
+Again, players that have a price of 0 have been excluded in order to not distort the linear model. 
+
+&nbsp;
+
+#### Setting benchmarks
+This step uses the superstar criteria, created earlier during the Price Analysis phase, in order to calculate averages of all playing skills (e.g. Crossing, Finishing, Ballcontrol etc.) for players considered superstars. The averages calculated were grouped by the 5 main playing positions, to provide a benchmark score of the significant playing skills, identified by the regression model.
+
+```{r Setting benchmarks: Superstar averages, message=FALSE, warning=FALSE}
+superstar_avg = fifa_superstars %>% 
+  group_by(Grouped_Position) %>% 
+  summarise(across(everything(), mean))
+```
+
+&nbsp;
+
+#### Predicting Prices (MIDFIELD) with Linear regression formula
+As a continuation of our analysis, we run a predictive price analysis with the linear regression formula per position to understand if each player is under valued or not in comparison with their log_price.
+
+```{r Predicting Prices: Midfield, message=FALSE, warning=FALSE}
+#Storing the LM model to an object.
+lm_midfield = fifa_data_avg_player %>% 
+  filter(Price > 0 & Grouped_Position == "MIDFIELD") %>%
+  lm(formula = log_price ~ Crossing+Finishing+HeadingAccuracy+ShortPassing+Volleys+Dribbling+Curve+FKAccuracy+LongPassing+BallControl+Acceleration+SprintSpeed+Agility+Reactions+Balance+ShotPower+Jumping+Stamina+Strength+LongShots+Aggression+Interceptions+Positioning+Vision+Penalties+Composure+Marking+StandingTackle+SlidingTackle+GKDiving+GKHandling+GKKicking+GKReflexes, data = .)
+
+#Creating a seperate dataframe for Midfielders
+midfield_filtered = fifa_data_avg_player %>%
+  filter(Grouped_Position == "MIDFIELD" & Price > 0)
+
+#Using the "Broom" package to extract predicted prices.
+predict_midfield_df = as_data_frame(broom::augment(lm_midfield))
+
+#Combining predicted prices to the Midfielders dataframe
+midfield_predited <- cbind(midfield_filtered, predict_midfield_df$.fitted)
+
+```
+
+&nbsp;
+
+## Player Screening/Identification process
+The identification process shown below is the output of our model. It identifies the undervalued players by using the Predicted log_price vs their actual log_price. It can be concluded that for the purpose of this model, if Predicted price is greater than Actual price, the player is undervalued and therefore would be a good buy. 
+The two or three main skills per position were considered taking into account the average scores of the superstar data set per position. This way we will set a benchmark of a superstar level to the average players, as mentioned before. 
+
+```{r Player Identification process: Midfield, message=FALSE, warning=FALSE}
+midfield_predited %>% 
+  filter(ShortPassing >= 79.67 & BallControl >= 80.84 & `predict_midfield_df$.fitted`> log_price) %>% 
+  arrange(desc(Price))
+```
+```{r Player Identification process: Goal-keeper, message=FALSE, warning=FALSE}
+goalie_predited %>% 
+  filter(GKDiving >= 82.34 & GKReflexes > 84.01  & `predict_goalie_df$.fitted`> log_price) %>% 
+  arrange(desc(Price))
+```
+
+```{r Player Identification process: Defence, message=FALSE, warning=FALSE}
+defence_predited %>% 
+  filter(Strength >= 77.35 & SlidingTackle >= 79.7 & StandingTackle >= 81  & `predict_defence_df$.fitted`> log_price) %>% 
+  arrange(desc(Price))
+```
+
+```{r Player Identification process: Wing, message=FALSE, warning=FALSE}
+wing_predited %>% 
+  filter(SprintSpeed >= 82.84 & Crossing >= 75.82  & `predict_wing_df$.fitted` > log_price) %>% 
+  arrange(desc(Price))
+```
+
+```{r Player Identification process: Strikers, message=FALSE, warning=FALSE}
+strikers_predited %>% 
+  filter(Finishing >= 80.70 & HeadingAccuracy >= 73.98  & `predict_p_df$.fitted`> log_price) %>% 
+  arrange(desc(Price))
+```
+&nbsp;
+
+**ANALYSIS on Output**
+The output here gives Brendan Rodgers options with a statistical backing for when the transfer window opens up. Another statistic that we recommend him to look at is the "Potential" score of a player in relation to his "Overall" score. For example, it can be noted that the player "S.Lukic" who is a STRIKER has an Overall score of 73 where as his Potential score is 80. Players like this, given a platform to showcase their skills in the EPL, may prove to be match winning invaluable assets to the team. 
+
+NOTE:
+In this selection process, players priced with 0 were not taken into consideration to avoid conflict in the regression analysis with log(0) = infinity. There are about 250 players who have a Price of 0. With the skills identified in the above model created, analysis players that have not been assigned a price yet can be done to see if there are any that fit the criteria required per playing position. 
+
+```{r Player Identification process: Players with Price 0, message=FALSE, warning=FALSE}
+fifa_data_avg_player %>% 
+  filter(Price == 0)
+```
+
+&nbsp;
+
+# Conclusion 
+To sum up, the analysis began by understanding the data set and dividing it two: avg. players and superstars, while considering price and international reputation. Subsequently, the regression analysis gave us the significance level of every skill in relationship with the price of each player by position. Furthermore, the top skilled players with the lower price were filtered by contrasting it with the average score of the superstars per position. Finally, a predictive price analysis was ran to understand if the player to be considered was over priced or under priced according to their skills. 
+
+We are concerned about the number of skills that we are considering when deciding to choose the best players as behind every skill category there are a wider range of skills that were analyzed and that we didn't have access to. Also, there are statistics such as number of goals scored, tackles done, goal assistance, number of saves,and other facts of every player that we are not considering that would help to build a more robust model.
+This model aims to be a stepping stone for other analysts to build upon in the future. 
+
+&nbsp;
+
+## Things to consider for future analysis:
+1. We are concern about the few skills that we are considering when deciding to choose the best players per position because behind every skill category that we are considering there are a wider range of skills that were analyzed and that we didn't have access to. 
+
+2. There are statistics such as number of goals scored, tackles done, goal assistance, number of saves,and other facts of every player that we are not considering that it would help us to build a more robust model.
+
+3. As extensive as the FIFA dataset might be, it would be impossible to account for everyone in the world that plays football. In this case, we might be missing details of talented players in different parts of the world while running our predictions.
+
+4. We did not consider the 250 players in the data set that had a price of 0 as we felt the number was insignificant in comparison to the over 18,000 other players that were used in the analysis. However, with the information on key skills per position, it would be beneficial to Leicester City to consider these players.
+
+5. The impact of "International reputation" on the price of a player would be interesting to analyse however we were unable to locate further information about "International reputation" in relation to this dataset. 
+
+&nbsp;
+
+# Reference List:
+1.	AI price players:
+https://www.wsj.com/articles/ai-to-advise-nfl-on-what-to-pay-players-11563787804
+
+2.	Greed, Scandal, Predictability: Is This Sport No Longer Beautiful?
+https://www.wsj.com/articles/SB112438102333116744
+
+3.	English Soccer Is Back—and It’s Already Exhausted
+https://www.wsj.com/articles/english-soccer-is-backand-its-already-exhausted-11599824297?mod=searchresults_pos15&page=1
+
+4.	HUGE Transfer fee attached to buying big players:
+https://www.economist.com/finance-and-economics/2017/08/12/why-the-worlds-best-footballers-are-cheaper-than-they-seem
+https://www.economist.com/game-theory/2017/08/09/why-neymar-is-different
+
+5.	Are EPL players getting paid too much?
+https://bleacherreport.com/articles/571235-footballers-wages-are-the-premier-league-stars-really-getting-paid-too-much
+
+6.	How can we justify footballers wages?
+https://www.theguardian.com/commentisfree/2010/jul/08/justify-footballers-wages-moral-outcry
+
+7.	2020 EPL team budget per team:
+https://www.express.co.uk/sport/football/1205021/Football-Manager-2020-budgets-Premier-League-team-ranked-FM20-transfer-funds
+
+8.  Overspending in the Premier League:
+https://www.forbes.com/sites/andrewbrennan/2018/03/01/overspending-in-the-premier-league-continues-and-its-worrying/?sh=711d0b02231b
+
+9.  Lecister Success Story
+https://www.nbcsports.com/washington/soccer/leicester-city-clinches-epl-title-greatest-underdog-season-sports-history#:~:text=Leicester%20City%20had%205000%2Dto,the%20beginning%20of%20the%20season.
+
+10.  FIFA player analysis
+https://www.goal.com/en-ae/news/fifa-player-ratings-explained-how-are-the-card-number-stats/1hszd2fgr7wgf1n2b2yjdpgynu#:~:text=Each%20player%20in%20FIFA%20Ultimate,calculate%20the%20player's%20overall%20rating.
+

@@ -1,0 +1,400 @@
+---
+title: "Team project: Checkpoint"
+author: "Juan Pablo Jaramillo & Varun Vijayakumar - TEAM 2"
+subtitle: "R for Data Science @ Hult University"
+output:
+  html_notebook:
+    highlight: pygments
+    number_sections: yes
+    theme: readable
+    toc: yes
+    toc_float:
+      collapsed: yes
+---
+ATTENTION!!
+PLEASE RUN ALL THE CODE BELOW TO ENSURE ALL THE VARIABLES ARE IN THE GLOBAL ENVIRONMENT BEFORE LOOKING THROUGH THE 'FINAL PROJECT' FILE.
+SHORTCUT TO RUN ALL THE BELOW CODE: COMMAND + OPTION + R
+
+# Set-up {.unnumbered}
+Load Tidyverse
+```{r load packages, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(broom)
+# load other packages AS NEEDED and ONLY IF YOU *REALLY* NEED THEM
+```
+
+#Load Data
+Load your data here:
+```{r load data, message=FALSE, warning=FALSE}
+fifa_data <- read.csv('data/fifa.raw.data.csv') #Import function used
+```
+
+#Exploratory data analysis
+**Figure 1:** 
+Histogram of Overall Scores of players.
+```{r}
+fifa_data %>% 
+  ggplot(aes(x = Overall))+   
+  geom_histogram(bins = 100)
+```
+**Figure 2:**
+Scatter plot between Price and Overall score
+```{r}
+fifa_data %>% 
+  filter(Price > 0) %>% 
+  ggplot(data = .,aes(x = Overall, y= Price))+
+  geom_point()+
+  geom_vline(xintercept = 65, color = "Red")
+```
+**Figure 2.1**
+Scatter plot between log_price and Overall score
+```{r}
+#TRANSFORMATION OF PRICE
+fifa_data <- fifa_data %>% 
+  mutate(log_price = log(Price))
+```
+
+```{r}
+#Scatter plot after transformation
+fifa_data %>% 
+  filter(Price > 0) %>% 
+  ggplot(data = .,aes(x = Overall, y= log_price))+
+  geom_point()+
+  geom_vline(xintercept = 65, color = "Red")+
+  geom_smooth(method = "lm")
+```
+**Figure 3:**
+Linear Regression summary statistics
+```{r}
+fifa_data %>% 
+  filter(Price > 0) %>% 
+  lm(formula = log_price ~ Overall, data = .) %>% 
+  summary()
+```
+**Figure 4:** 
+Scatter plot showing the average price per playing position
+```{r, message=FALSE, warning=FALSE}
+fifa_data %>% 
+  group_by(Position) %>% 
+  summarize(avg_price_position = mean(Price)) %>% 
+  ggplot(data = ., aes(x = Position, y = avg_price_position))+
+  geom_point()
+```
+**Figure 5:**
+Outlier Identification
+```{r}
+fifa_data %>% 
+  slice_max(Price, n=30) %>% 
+  arrange(desc(Price))
+```
+**Figure 6:**
+Analysis of relationship between salary and price of players
+```{r}
+fifa_data %>% 
+  ggplot(data = ., aes(x = Price, y = Salary))+
+  geom_point(alpha = 0.25)+
+  geom_vline(xintercept = 30000000, color = "red")+
+  geom_smooth(method = "lm")
+```
+
+# Analysis plan
+##Player grouping
+```{r}
+fifa_data <- fifa_data %>% 
+  mutate(Grouped_Position = ifelse(fifa_data$Position == 'RF', 'STRIKER',
+                        ifelse(fifa_data$Position == 'CAM', 'MIDFIELD',
+                        ifelse(fifa_data$Position == 'CB', 'DEFENCE',
+                        ifelse(fifa_data$Position == 'CDM', 'MIDFIELD',
+                        ifelse(fifa_data$Position == 'CF', 'STRIKER',
+                        ifelse(fifa_data$Position == 'CM', 'MIDFIELD',
+                        ifelse(fifa_data$Position == 'GK', 'GOAL-KEEPER',
+                        ifelse(fifa_data$Position == 'LAM', 'MIDFIELD',
+                        ifelse(fifa_data$Position == 'LB', 'DEFENCE',
+                        ifelse(fifa_data$Position == 'LCB', 'DEFENCE',
+                        ifelse(fifa_data$Position == 'LDM', 'MIDFIELD',
+                        ifelse(fifa_data$Position == 'LCM', 'MIDFIELD',
+                        ifelse(fifa_data$Position == 'LF', 'WING',
+                        ifelse(fifa_data$Position == 'LM', 'MIDFIELD',
+                        ifelse(fifa_data$Position == 'LW', 'WING',
+                        ifelse(fifa_data$Position == 'LWB', 'DEFENCE', 
+                        ifelse(fifa_data$Position == 'RAM', 'MIDFIELD', 
+                        ifelse(fifa_data$Position == 'RB', 'DEFENCE', 
+                        ifelse(fifa_data$Position == 'RCB', 'DEFENCE',
+                        ifelse(fifa_data$Position == 'RCM', 'MIDFIELD',
+                        ifelse(fifa_data$Position == 'RDM', 'MIDFIELD',
+                        ifelse(fifa_data$Position == 'RF', 'STRIKER',
+                        ifelse(fifa_data$Position == 'RM', 'MIDFIELD',
+                        ifelse(fifa_data$Position == 'RS', 'STRIKER',
+                        ifelse(fifa_data$Position == 'RW', 'WING',
+                        ifelse(fifa_data$Position == 'RWB', 'DEFENCE',
+                        ifelse(fifa_data$Position == 'ST', 'STRIKER',
+                        ifelse(fifa_data$Position == 'LS', 'STRIKER',
+                        'other')))))))))))))))))))))))))))))
+```
+
+```{r}
+unique(fifa_data$Grouped_Position)
+```
+
+##Price analysis
+```{r}
+fifa_data %>% # Create a boxplot to understand the outliers (Superstars)
+  ggplot(data = ., mapping = aes(x= log_price)) +
+  geom_boxplot()
+```
+```{r}
+#Calculate the range 
+range(fifa_data$Price)
+```
+
+```{r}
+#Calculate the Quantiles to see the the distribution of prices under the curve
+quantile(fifa_data$Price)
+```
+
+```{r} 
+# Filter data set by price, international reputation, and Potential to create the avg player data set
+fifa_data_avg_player <- fifa_data %>% 
+  filter(.data = ., Price < 9000000) 
+```
+
+```{r}
+#check the range in prices of the avg players
+range(fifa_data_avg_player$Price)
+```
+
+```{r}
+#look at the distribution in prices of the avg player 
+quantile(fifa_data_avg_player$Price) 
+```
+
+```{r}
+fifa_superstars <- fifa_data %>% 
+  filter(., Price > 9000000)  #number of superstar that we are not considering that are valued over $9,000,000 i.e SuperStars
+```
+
+```{r}
+fifa_data_avg_player %>% 
+  group_by(Grouped_Position) %>% 
+  count() 
+```
+##Superstar Averages
+```{r superstar averages, message=FALSE, warning=FALSE}
+superstar_avg = fifa_superstars %>% 
+  group_by(Grouped_Position) %>% 
+  summarise(across(everything(), mean))
+```
+
+
+##Identifying stastically significant skills per position
+**Playing position: STRIKER**
+```{r}
+#Finding out important attributes for Strikers players
+fifa_data_avg_player %>% 
+  filter(Price > 0 & Grouped_Position == "STRIKER") %>%
+  lm(formula = log_price ~ Crossing+Finishing+HeadingAccuracy+ShortPassing+Volleys+Dribbling+Curve+FKAccuracy+LongPassing+BallControl+Acceleration+SprintSpeed+Agility+Reactions+Balance+ShotPower+Jumping+Stamina+Strength+LongShots+Aggression+Interceptions+Positioning+Vision+Penalties+Composure+Marking+StandingTackle+SlidingTackle+GKDiving+GKHandling+GKKicking+GKReflexes, data = .) %>% 
+  summary()
+```
+**Playing position:WING**
+```{r}
+#Finding out important attributes for Wing players
+fifa_data_avg_player %>% 
+  filter(Price > 0 & Grouped_Position == "WING") %>%
+  lm(formula = log_price ~ Crossing+Finishing+HeadingAccuracy+ShortPassing+Volleys+Dribbling+Curve+FKAccuracy+LongPassing+BallControl+Acceleration+SprintSpeed+Agility+Reactions+Balance+ShotPower+Jumping+Stamina+Strength+LongShots+Aggression+Interceptions+Positioning+Vision+Penalties+Composure+Marking+StandingTackle+SlidingTackle+GKDiving+GKHandling+GKKicking+GKReflexes, data = .) %>% 
+  summary()
+```
+**Playing position:MIDFIELD**
+```{r}
+#filtering for MIDFIELD players
+fifa_data_avg_player %>% 
+  filter(Price > 0 & Grouped_Position == "MIDFIELD") %>%
+  lm(formula = log_price ~ Crossing+Finishing+HeadingAccuracy+ShortPassing+Volleys+Dribbling+Curve+FKAccuracy+LongPassing+BallControl+Acceleration+SprintSpeed+Agility+Reactions+Balance+ShotPower+Jumping+Stamina+Strength+LongShots+Aggression+Interceptions+Positioning+Vision+Penalties+Composure+Marking+StandingTackle+SlidingTackle+GKDiving+GKHandling+GKKicking+GKReflexes, data = .) %>% 
+  summary()
+
+```
+**Playing position:DEFENCE**
+```{r}
+#filtering for DEFENCE players
+fifa_data_avg_player %>% 
+  filter(Price > 0 & Grouped_Position == "DEFENCE") %>%
+  lm(formula = log_price ~ Crossing+Finishing+HeadingAccuracy+ShortPassing+Volleys+Dribbling+Curve+FKAccuracy+LongPassing+BallControl+Acceleration+SprintSpeed+Agility+Reactions+Balance+ShotPower+Jumping+Stamina+Strength+LongShots+Aggression+Interceptions+Positioning+Vision+Penalties+Composure+Marking+StandingTackle+SlidingTackle+GKDiving+GKHandling+GKKicking+GKReflexes, data = .) %>% 
+  summary()
+```
+
+**Playing position:GOAL-KEEPER**
+```{r}
+#filtering for GOAL-KEEPER players
+fifa_data_avg_player %>% 
+  filter(Price > 0 & Grouped_Position == "GOAL-KEEPER") %>%
+  lm(formula = log_price ~ Crossing+Finishing+HeadingAccuracy+ShortPassing+Volleys+Dribbling+Curve+FKAccuracy+LongPassing+BallControl+Acceleration+SprintSpeed+Agility+Reactions+Balance+ShotPower+Jumping+Stamina+Strength+LongShots+Aggression+Interceptions+Positioning+Vision+Penalties+Composure+Marking+StandingTackle+SlidingTackle+GKDiving+GKHandling+GKKicking+GKReflexes, data = .) %>% 
+  summary()
+```
+
+##Player Identification
+###FILTERING FOR STRIKERS - 2 Main SKILLS
+```{r}
+fifa_data_avg_player %>%
+  filter(Grouped_Position == "STRIKER") %>% 
+  filter(Finishing >= 80.70 & HeadingAccuracy >= 73.98) %>% 
+  arrange(desc(Price))
+```
+
+
+###FILTERING FOR WING - 2 Main SKILLS
+```{r}
+fifa_data_avg_player %>%
+  filter(Grouped_Position == "WING") %>% 
+  filter(SprintSpeed >= 82.84 & Crossing >= 75.82) %>% 
+  arrange(desc(Price))
+```
+
+###Filtering for midfield - 2 main SKILLS
+```{r}
+fifa_data_avg_player %>% 
+  filter(Grouped_Position == "MIDFIELD") %>%   
+  filter(ShortPassing >= 79.67 & BallControl >= 80.84) %>% 
+  arrange(desc(Price))
+```
+
+###FILTERING FOR DEFENCE - 2 Main SKILLS
+```{r}
+fifa_data_avg_player %>% 
+  filter(Grouped_Position == "DEFENCE") %>%   
+  filter(Strength >= 77.35 & SlidingTackle >= 79.7 & StandingTackle >= 81) %>% 
+  arrange(desc(Price))
+```
+###FILTERING FOR Goal-keeper - 2 Main SKILLS
+```{r}
+fifa_data_avg_player %>% 
+  filter(Grouped_Position == "GOAL-KEEPER") %>% 
+  filter(GKDiving >= 82.34 & GKReflexes > 84.01 ) %>%
+  arrange(desc(Price))
+```
+
+###Predicting Prices (Strikers) with Linear regression formula
+```{r}
+lm_strikers = fifa_data_avg_player %>% 
+  filter(Price > 0 & Grouped_Position == "STRIKER") %>%
+  lm(formula = log_price ~ Crossing+Finishing+HeadingAccuracy+ShortPassing+Volleys+Dribbling+Curve+FKAccuracy+LongPassing+BallControl+Acceleration+SprintSpeed+Agility+Reactions+Balance+ShotPower+Jumping+Stamina+Strength+LongShots+Aggression+Interceptions+Positioning+Vision+Penalties+Composure+Marking+StandingTackle+SlidingTackle+GKDiving+GKHandling+GKKicking+GKReflexes, data = .)
+  
+
+strikers_filtered = fifa_data_avg_player %>%
+  filter(Grouped_Position == "STRIKER" & Price > 0)
+
+predict_p_df = as_data_frame(broom::augment(lm_strikers))
+
+strikers_predited <- cbind(strikers_filtered, predict_p_df$.fitted)
+
+strikers_predited %>%
+  filter(`predict_p_df$.fitted`< log_price)
+
+
+```
+
+###Predicting Prices (Wing) with Linear regression formula
+```{r}
+lm_wing = fifa_data_avg_player %>% 
+  filter(Price > 0 & Grouped_Position == "WING") %>%
+  lm(formula = log_price ~ Crossing+Finishing+HeadingAccuracy+ShortPassing+Volleys+Dribbling+Curve+FKAccuracy+LongPassing+BallControl+Acceleration+SprintSpeed+Agility+Reactions+Balance+ShotPower+Jumping+Stamina+Strength+LongShots+Aggression+Interceptions+Positioning+Vision+Penalties+Composure+Marking+StandingTackle+SlidingTackle+GKDiving+GKHandling+GKKicking+GKReflexes, data = .)
+  
+
+wing_filtered = fifa_data_avg_player %>%
+  filter(Grouped_Position == "WING" & Price > 0)
+
+predict_wing_df = as_data_frame(broom::augment(lm_wing))
+
+wing_predited <- cbind(wing_filtered, predict_wing_df$.fitted)
+
+wing_predited %>%
+  filter(`predict_wing_df$.fitted`< log_price)
+```
+
+###Predicting Prices (MIDFIELD) with Linear regression formula
+```{r}
+lm_midfield = fifa_data_avg_player %>% 
+  filter(Price > 0 & Grouped_Position == "MIDFIELD") %>%
+  lm(formula = log_price ~ Crossing+Finishing+HeadingAccuracy+ShortPassing+Volleys+Dribbling+Curve+FKAccuracy+LongPassing+BallControl+Acceleration+SprintSpeed+Agility+Reactions+Balance+ShotPower+Jumping+Stamina+Strength+LongShots+Aggression+Interceptions+Positioning+Vision+Penalties+Composure+Marking+StandingTackle+SlidingTackle+GKDiving+GKHandling+GKKicking+GKReflexes, data = .)
+  
+
+midfield_filtered = fifa_data_avg_player %>%
+  filter(Grouped_Position == "MIDFIELD" & Price > 0)
+
+predict_midfield_df = as_data_frame(broom::augment(lm_midfield))
+
+midfield_predited <- cbind(midfield_filtered, predict_midfield_df$.fitted)
+
+midfield_predited %>%
+  filter(`predict_midfield_df$.fitted`< log_price)
+```
+
+###Predicting Prices (DEFENCE) with Linear regression formula
+```{r}
+lm_defence = fifa_data_avg_player %>% 
+  filter(Price > 0 & Grouped_Position == "DEFENCE") %>%
+  lm(formula = log_price ~ Crossing+Finishing+HeadingAccuracy+ShortPassing+Volleys+Dribbling+Curve+FKAccuracy+LongPassing+BallControl+Acceleration+SprintSpeed+Agility+Reactions+Balance+ShotPower+Jumping+Stamina+Strength+LongShots+Aggression+Interceptions+Positioning+Vision+Penalties+Composure+Marking+StandingTackle+SlidingTackle+GKDiving+GKHandling+GKKicking+GKReflexes, data = .)
+  
+
+defence_filtered = fifa_data_avg_player %>%
+  filter(Grouped_Position == "DEFENCE" & Price > 0)
+
+predict_defence_df = as_data_frame(broom::augment(lm_defence))
+
+defence_predited <- cbind(defence_filtered, predict_defence_df$.fitted)
+
+defence_predited %>%
+  filter(`predict_defence_df$.fitted`< log_price)
+```
+
+###Predicting Prices (GOAL-KEEPER) with Linear regression formula
+```{r}
+lm_goalie = fifa_data_avg_player %>% 
+  filter(Price > 0 & Grouped_Position == "GOAL-KEEPER") %>%
+  lm(formula = log_price ~ Crossing+Finishing+HeadingAccuracy+ShortPassing+Volleys+Dribbling+Curve+FKAccuracy+LongPassing+BallControl+Acceleration+SprintSpeed+Agility+Reactions+Balance+ShotPower+Jumping+Stamina+Strength+LongShots+Aggression+Interceptions+Positioning+Vision+Penalties+Composure+Marking+StandingTackle+SlidingTackle+GKDiving+GKHandling+GKKicking+GKReflexes, data = .)
+  
+
+goalie_filtered = fifa_data_avg_player %>%
+  filter(Grouped_Position == "GOAL-KEEPER" & Price > 0)
+
+predict_goalie_df = as_data_frame(broom::augment(lm_goalie))
+
+goalie_predited <- cbind(goalie_filtered, predict_goalie_df$.fitted)
+
+goalie_predited %>%
+  filter(`predict_goalie_df$.fitted`< log_price)
+```
+
+#Output
+Selecting Top Players for MIDFLIED Position, message=FALSE, warning=FALSE
+```{r}
+midfield_predited %>% 
+  filter(ShortPassing >= 79.67 & BallControl >= 80.84 & `predict_midfield_df$.fitted`> log_price) %>% 
+  arrange(desc(Price))
+```
+
+Selecting Top Players for GOAL - KEEPER Position, message=FALSE, warning=FALSE
+```{r}
+goalie_predited %>% 
+  filter(GKDiving >= 82.34 & GKReflexes > 84.01  & `predict_goalie_df$.fitted`> log_price) %>% 
+  arrange(desc(Price))
+```
+
+Selecting Top Players for DEFENCE Position, message=FALSE, warning=FALSE
+```{r}
+defence_predited %>% 
+  filter(Strength >= 77.35 & SlidingTackle >= 79.7 & StandingTackle >= 81  & `predict_defence_df$.fitted`> log_price) %>% 
+  arrange(desc(Price))
+```
+
+Selecting Top Players for WING Position, message=FALSE, warning=FALSE
+```{r}
+wing_predited %>% 
+  filter(SprintSpeed >= 82.84 & Crossing >= 75.82  & `predict_wing_df$.fitted` > log_price) %>% 
+  arrange(desc(Price))
+```
+
+Selecting Top Players for STRICKERS Position, message=FALSE, warning=FALSE
+```{r}
+strikers_predited %>% 
+  filter(Finishing >= 80.70 & HeadingAccuracy >= 73.98  & `predict_p_df$.fitted`> log_price) %>% 
+  arrange(desc(Price))
+```
